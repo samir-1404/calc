@@ -1,0 +1,12 @@
+/* frontend/styles/globals.module.css */
+.reset {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.body {
+  font-family: 'Vazirmatn', sans-serif;
+  direction: rtl;
+  line-height: 1.6;
+}

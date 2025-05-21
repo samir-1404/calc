@@ -1,0 +1,125 @@
+# مستندات مشکلات و راه‌حل‌ها
+
+## مشکل ۱: خطای `Failed to fetch` و `net::ERR_CONNECTION_REFUSED`
+**توضیح مشکل**:
+- مرورگر نمی‌تونه به بک‌اند (مثلاً روی پورت 3002) وصل بشه.
+- خطا: `Failed to load resource: net::ERR_CONNECTION_REFUSED`
+
+**علت‌های احتمالی**:
+1. بک‌اند اجرا نیست.
+2. پورت مشغول یا بلاک شده.
+3. مشکل فایروال یا آنتی‌ویروس.
+4. مشکل شبکه (Winsock یا DNS).
+
+**راه‌حل‌ها**:
+1. **چک کردن بک‌اند**:
+   - مطمئن شو که بک‌اند اجرا می‌شه:
+
+
+cd C:\Users\Arshia\smart-calculator\backend
+node server.js
+
+text
+
+Copy
+- باید ببینی: `Server running on port 3002` (یا هر پورت دیگه‌ای که تنظیم کردی).
+
+2. **تست با curl**:
+- با curl چک کن که بک‌اند کار می‌کنه:
+curl -X POST http://localhost:3002/api/irrigation-pump/calculate -H "Content-Type: application/json" -d "{"area": 10, "waterDepth": 5, "distanceToWater": 100, "cropType": "گندم"}"
+
+text
+
+Copy
+
+3. **چک کردن پورت**:
+- پورت‌های مشغول رو چک کن:
+netstat -aon | findstr :3002
+
+text
+
+Copy
+- اگه پورت مشغول بود، فرآیند رو ببند:
+taskkill /PID 1234 /F
+
+text
+
+Copy
+- یا پورت رو تو `server.js` و `IrrigationPumpCalculator.js` تغییر بده (مثلاً به 4000).
+
+4. **فایروال و آنتی‌ویروس**:
+- فایروال رو برای پورت (مثلاً 3002) باز کن:
+- Control Panel → Windows Defender Firewall → Advanced Settings
+- New Rule → Port → TCP → Specific local ports: 3002 → Allow → Finish
+- آنتی‌ویروس رو موقتاً غیرفعال کن.
+
+5. **ریست شبکه**:
+- شبکه رو ریست کن:
+ipconfig /flushdns
+netsh winsock reset
+
+text
+
+Copy
+- سیستم رو ری‌استارت کن.
+
+6. **تست با مرورگر دیگه**:
+- اگه تو Chrome کار نکرد، تو Firefox یا Edge تست کن.
+
+## مشکل ۲: کاراکترهای فارسی تو دیتابیس درست نمایش داده نمی‌شن
+**توضیح مشکل**:
+- تو دیتابیس کاراکترهای فارسی به‌صورت ناخوانا نمایش داده می‌شن (مثلاً `?م? جد?د`).
+
+**علت‌های احتمالی**:
+- Encoding دیتابیس یا client درست تنظیم نشده.
+
+**راه‌حل‌ها**:
+1. **چک کردن encoding**:
+- به دیتابیس وصل شو:
+psql -U postgres -d irrigation_db
+
+text
+
+Copy
+- encoding رو چک کن:
+SHOW client_encoding;
+SHOW server_encoding;
+
+text
+
+Copy
+- باید هر دو `UTF8` باشن.
+
+2. **بازسازی دیتابیس**:
+- اگه encoding درست نیست، دیتابیس رو بازسازی کن:
+\q
+psql -U postgres
+DROP DATABASE irrigation_db;
+CREATE DATABASE irrigation_db WITH ENCODING 'UTF8' TEMPLATE template0;
+
+text
+
+Copy
+- دوباره جدول `pumps` رو بساز و داده‌ها رو وارد کن.
+
+## مشکل ۳: `suggested_pump` تو پاسخ بک‌اند `null` هست
+**توضیح مشکل**:
+- تو پاسخ بک‌اند، `suggested_pump` برابر با `null` هست.
+
+**علت‌های احتمالی**:
+1. داده‌های دیتابیس با شرایط مطابقت ندارن.
+2. مشکل تو کد `calculate.js`.
+
+**راه‌حل‌ها**:
+1. **چک کردن داده‌ها**:
+- به دیتابیس وصل شو و داده‌ها رو چک کن:
+SELECT * FROM pumps;
+
+text
+
+Copy
+- مطمئن شو که پمپ‌ها با شرایط (flow_rate و head) مطابقت دارن.
+
+2. **چک کردن کد**:
+- فایل `calculate.js` رو چک کن و مطمئن شو که شرط‌ها درستن:
+const query = 'SELECT * FROM pumps WHERE flow_rate >= $1 AND head >= $2';
